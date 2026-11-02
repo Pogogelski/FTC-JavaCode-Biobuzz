@@ -15,21 +15,22 @@ public class Biobuzz2026 extends LinearOpMode {
 
     // Sentido de giro (olhando de frente para o eixo do motor):
     // potência POSITIVA = anti-horário | potência NEGATIVA = horário
-    static final double SHOOTER_ANTIHORARIO      = -0.7; // RB - 70%
-    static final double SHOOTER_HORARIO  =  1.0; // LB - 100%
-    static final double INTAKE_ANTIHORARIO   =  1.0; // D-pad cima - 100%
-    static final double INTAKE_HORARIO       = -1.0; // D-pad baixo - 100%
+    static final double SHOOTER_ANTIHORARIO =  0.7; // RB - 70% - gira para a esquerda
+    static final double SHOOTER_HORARIO     = -1.0; // LB - 100% - gira para a direita
+    static final double INTAKE_ANTIHORARIO  =  1.0; // D-pad cima - 100%
+    static final double INTAKE_HORARIO      = -1.0; // D-pad baixo - 100%
 
-    // Servo (portão)
+    // ============ SERVO (PORTÃO) ============
+    // Ponto 0 = portão ABERTO (para cima)
+    // 88 graus no sentido horário (para a direita) = portão FECHADO
     // Capacidade máxima do servo: REV Smart Robot Servo = 270 graus de fábrica
     static final double SERVO_CURSO_TOTAL = 270.0;
     // Limite de segurança: o servo NUNCA passa de 1/4 de volta
     static final double SERVO_LIMITE      = 90.0;
-    // Quanto o portão abre ao apertar A (no máximo SERVO_LIMITE)
+    // Quanto o servo gira para FECHAR o portão (no máximo SERVO_LIMITE)
     static final double SERVO_ANGULO      = 88.0;
-    static final double SERVO_POS_ZERO    = 0.0;
-    // Com o limite aplicado, a escala 0..1 passa a valer 0..90 graus
-    static final double SERVO_POS_88      = SERVO_ANGULO / SERVO_LIMITE; // ~0.978
+    static final double SERVO_POS_ZERO    = 0.0;                         // portão ABERTO
+    static final double SERVO_POS_88      = SERVO_ANGULO / SERVO_LIMITE; // ~0.978 - portão FECHADO
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -47,20 +48,22 @@ public class Biobuzz2026 extends LinearOpMode {
         backRight.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // ============ MECANISMOS - EXPANSION HUB (gamepad2) ============
-        DcMotor intake  = hardwareMap.dcMotor.get("Intake");
-        DcMotor shooter = hardwareMap.dcMotor.get("Shooter");
+        DcMotor shooter = hardwareMap.dcMotor.get("Shooter"); // porta 0 do Expansion Hub
+        DcMotor intake  = hardwareMap.dcMotor.get("Intake");  // porta 1 do Expansion Hub
 
-        // Mantidos em FORWARD para o sentido seguir as constantes do topo
-        intake.setDirection(DcMotorSimple.Direction.FORWARD);
+        // Mantidos em FORWARD para o sentido seguir as constantes do topo.
+        // Se algum girar ao contrário no teste, troque só aquele para REVERSE.
         shooter.setDirection(DcMotorSimple.Direction.FORWARD);
+        intake.setDirection(DcMotorSimple.Direction.FORWARD);
 
-        // Intake trava ao soltar; shooter desacelera sozinho
-        intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        // Shooter desacelera sozinho; intake trava ao soltar
         shooter.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // Servo na porta 0 (nome precisa bater com a configuração do Driver Hub)
+        // Servo do portão na porta 0 de servos (nome precisa bater com o Driver Hub)
         Servo servo = hardwareMap.servo.get("Servo");
-        // Se ao apertar A ele girar anti-horário, troque para REVERSE
+        // Ao apertar A, o portão deve girar para a DIREITA (horário).
+        // Se girar para a esquerda, troque para REVERSE e refaça a montagem do ponto 0.
         servo.setDirection(Servo.Direction.FORWARD);
         // Trava o servo entre 0 e 90 graus: qualquer posição pedida fica dentro desse intervalo
         servo.scaleRange(0.0, SERVO_LIMITE / SERVO_CURSO_TOTAL);
@@ -77,7 +80,7 @@ public class Biobuzz2026 extends LinearOpMode {
 
         if (isStopRequested()) return;
 
-        // Ao apertar PLAY, o servo vai para o marco 0
+        // Ao apertar PLAY, o portão começa ABERTO (ponto 0)
         servo.setPosition(SERVO_POS_ZERO);
 
         while (opModeIsActive()) {
@@ -112,11 +115,11 @@ public class Biobuzz2026 extends LinearOpMode {
             backRight.setPower(backRightPower);
 
             // ============ SHOOTER - GAMEPAD 2 ============
-            // Segurando RB: horário 70% | Segurando LB: anti-horário 100% | Solto: parado
+            // Segurando RB: anti-horário 70% | Segurando LB: horário 100% | Solto: parado
             double shooterPower = 0;
-            if (gamepad2.left_bumper) {
+            if (gamepad2.right_bumper) {
                 shooterPower = SHOOTER_ANTIHORARIO;
-            } else if (gamepad2.right_bumper) {
+            } else if (gamepad2.left_bumper) {
                 shooterPower = SHOOTER_HORARIO;
             }
             shooter.setPower(shooterPower);
@@ -131,8 +134,8 @@ public class Biobuzz2026 extends LinearOpMode {
             }
             intake.setPower(intakePower);
 
-            // ============ SERVO - GAMEPAD 2 ============
-            // A: gira 88 graus a partir do 0 | B: volta ao marco 0
+            // ============ SERVO (PORTÃO) - GAMEPAD 2 ============
+            // A: fecha o portão (88 graus para a direita) | B: abre o portão (ponto 0)
             if (gamepad2.a) {
                 servo.setPosition(SERVO_POS_88);
             } else if (gamepad2.b) {
@@ -145,7 +148,7 @@ public class Biobuzz2026 extends LinearOpMode {
             telemetry.addData("BL / BR", "%.2f / %.2f", backLeftPower, backRightPower);
             telemetry.addData("Shooter", "%.2f", shooterPower);
             telemetry.addData("Intake", "%.2f", intakePower);
-            telemetry.addData("Servo (posição)", "%.3f", servo.getPosition());
+            telemetry.addData("Portão", servo.getPosition() > 0.5 ? "FECHADO" : "ABERTO");
             telemetry.update();
         }
     }
