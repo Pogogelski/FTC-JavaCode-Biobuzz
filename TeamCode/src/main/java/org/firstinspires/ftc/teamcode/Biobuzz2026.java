@@ -15,8 +15,8 @@ public class Biobuzz2026 extends LinearOpMode {
 
     // Sentido de giro (olhando de frente para o eixo do motor):
     // potência POSITIVA = anti-horário | potência NEGATIVA = horário
-    static final double SHOOTER_HORARIO      = -0.7; // RB - 70%
-    static final double SHOOTER_ANTIHORARIO  =  1.0; // LB - 100%
+    static final double SHOOTER_ANTIHORARIO      = -0.7; // RB - 70%
+    static final double SHOOTER_HORARIO  =  1.0; // LB - 100%
     static final double INTAKE_ANTIHORARIO   =  1.0; // D-pad cima - 100%
     static final double INTAKE_HORARIO       = -1.0; // D-pad baixo - 100%
 
@@ -114,10 +114,10 @@ public class Biobuzz2026 extends LinearOpMode {
             // ============ SHOOTER - GAMEPAD 2 ============
             // Segurando RB: horário 70% | Segurando LB: anti-horário 100% | Solto: parado
             double shooterPower = 0;
-            if (gamepad2.right_bumper) {
-                shooterPower = SHOOTER_HORARIO;
-            } else if (gamepad2.left_bumper) {
+            if (gamepad2.left_bumper) {
                 shooterPower = SHOOTER_ANTIHORARIO;
+            } else if (gamepad2.right_bumper) {
+                shooterPower = SHOOTER_HORARIO;
             }
             shooter.setPower(shooterPower);
 
