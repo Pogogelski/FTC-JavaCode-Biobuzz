@@ -11,7 +11,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @TeleOp
 
-public class Biobuzz2026 extends LinearOpMode {
+public class    Biobuzz2026 extends LinearOpMode {
 
     // ============ MECANUM ============
     // O robô estava indo para a esquerda quando mandava ir para a direita.
