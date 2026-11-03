@@ -11,7 +11,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @TeleOp
 
-public class    Biobuzz2026 extends LinearOpMode {
+public class Biobuzz2026 extends LinearOpMode {
 
     // ============ MECANUM ============
     // O robô estava indo para a esquerda quando mandava ir para a direita.
@@ -24,14 +24,14 @@ public class    Biobuzz2026 extends LinearOpMode {
 
     // Sentido de giro (olhando de frente para o eixo do motor):
     // potência POSITIVA = anti-horário | potência NEGATIVA = horário
-    static final double SHOOTER_ANTIHORARIO =  -0.6; // RB - 70% - gira para a esquerda
+    static final double SHOOTER_ANTIHORARIO =  -0.6; // RB - 60% - gira para a esquerda
     static final double SHOOTER_HORARIO     = 1.0; // LB - 100% - gira para a direita
     static final double INTAKE_ANTIHORARIO  =  1.0; // D-pad cima - 100%
     static final double INTAKE_HORARIO      = -1.0; // D-pad baixo - 100%
 
     // ============ SERVO (PORTÃO) ============
     // Ponto 0 = portão ABERTO (para cima)
-    // 88 graus no sentido horário (para a direita) = portão FECHADO
+    // SERVO_ANGULO graus no sentido horário (para a direita) = portão FECHADO
     // Capacidade máxima do servo: REV Smart Robot Servo = 270 graus de fábrica
     static final double SERVO_CURSO_TOTAL = 270.0;
     // Limite de segurança: o servo NUNCA passa de 1/4 de volta
@@ -39,7 +39,7 @@ public class    Biobuzz2026 extends LinearOpMode {
     // Quanto o servo gira para FECHAR o portão (no máximo SERVO_LIMITE)
     static final double SERVO_ANGULO      = 50.0;
     static final double SERVO_POS_ZERO    = 0.0;                         // portão ABERTO
-    static final double SERVO_POS_88      = SERVO_ANGULO / SERVO_LIMITE; // ~0.978 - portão FECHADO
+    static final double SERVO_POS_88      = SERVO_ANGULO / SERVO_LIMITE; // portão FECHADO
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -77,6 +77,9 @@ public class    Biobuzz2026 extends LinearOpMode {
         // Trava o servo entre 0 e 90 graus: qualquer posição pedida fica dentro desse intervalo
         servo.scaleRange(0.0, SERVO_LIMITE / SERVO_CURSO_TOTAL);
 
+        // Portão já fecha no INIT, segurando as bolas antes do PLAY
+        servo.setPosition(SERVO_POS_88);
+
         // ============ IMU ============
         IMU imu = hardwareMap.get(IMU.class, "imu");
         // Ajuste conforme a montagem do hub no robô
@@ -92,8 +95,8 @@ public class    Biobuzz2026 extends LinearOpMode {
         // Ao apertar PLAY, a direção atual do robô vira a "frente do campo"
         imu.resetYaw();
 
-        // Ao apertar PLAY, o portão começa ABERTO (ponto 0)
-        servo.setPosition(SERVO_POS_ZERO);
+        // Ao apertar PLAY, o portão começa FECHADO
+        servo.setPosition(SERVO_POS_88);
 
         // true = field-centric (frente do CAMPO) | false = robot-centric (frente do ROBÔ)
         // Aperte X no gamepad 1 para alternar durante o jogo.
@@ -148,7 +151,7 @@ public class    Biobuzz2026 extends LinearOpMode {
             backRight.setPower(backRightPower);
 
             // ============ SHOOTER - GAMEPAD 2 ============
-            // Segurando RB: anti-horário 70% | Segurando LB: horário 100% | Solto: parado
+            // Segurando RB: anti-horário 60% | Segurando LB: horário 100% | Solto: parado
             double shooterPower = 0;
             if (gamepad2.right_bumper) {
                 shooterPower = SHOOTER_ANTIHORARIO;
@@ -168,7 +171,7 @@ public class    Biobuzz2026 extends LinearOpMode {
             intake.setPower(intakePower);
 
             // ============ SERVO (PORTÃO) - GAMEPAD 2 ============
-            // A: fecha o portão (88 graus para a direita) | B: abre o portão (ponto 0)
+            // A: fecha o portão | B: abre o portão (ponto 0)
             if (gamepad2.a) {
                 servo.setPosition(SERVO_POS_88);
             } else if (gamepad2.b) {
@@ -183,7 +186,7 @@ public class    Biobuzz2026 extends LinearOpMode {
             telemetry.addData("BL / BR", "%.2f / %.2f", backLeftPower, backRightPower);
             telemetry.addData("Shooter", "%.2f", shooterPower);
             telemetry.addData("Intake", "%.2f", intakePower);
-            telemetry.addData("Portão", servo.getPosition() > 0.5 ? "FECHADO" : "ABERTO");
+            telemetry.addData("Portão", servo.getPosition() > SERVO_POS_88 / 2 ? "FECHADO" : "ABERTO");
             telemetry.update();
         }
     }
