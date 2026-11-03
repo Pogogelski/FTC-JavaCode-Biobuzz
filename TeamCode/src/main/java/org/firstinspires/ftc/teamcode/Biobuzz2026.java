@@ -13,10 +13,19 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 public class Biobuzz2026 extends LinearOpMode {
 
+    // ============ MECANUM ============
+    // O robô estava indo para a esquerda quando mandava ir para a direita.
+    // true = inverte o movimento lateral (strafe). Se voltar a inverter, troque para false.
+    static final boolean INVERTER_STRAFE = true;
+
+    // Zona morta do analógico: valores menores que isso viram 0.
+    // Evita o robô "andar sozinho" quando o analógico não volta exatamente ao centro.
+    static final double ZONA_MORTA = 0.08;
+
     // Sentido de giro (olhando de frente para o eixo do motor):
     // potência POSITIVA = anti-horário | potência NEGATIVA = horário
-    static final double SHOOTER_ANTIHORARIO =  0.7; // RB - 70% - gira para a esquerda
-    static final double SHOOTER_HORARIO     = -1.0; // LB - 100% - gira para a direita
+    static final double SHOOTER_ANTIHORARIO =  -0.6; // RB - 70% - gira para a esquerda
+    static final double SHOOTER_HORARIO     = 1.0; // LB - 100% - gira para a direita
     static final double INTAKE_ANTIHORARIO  =  1.0; // D-pad cima - 100%
     static final double INTAKE_HORARIO      = -1.0; // D-pad baixo - 100%
 
@@ -28,7 +37,7 @@ public class Biobuzz2026 extends LinearOpMode {
     // Limite de segurança: o servo NUNCA passa de 1/4 de volta
     static final double SERVO_LIMITE      = 90.0;
     // Quanto o servo gira para FECHAR o portão (no máximo SERVO_LIMITE)
-    static final double SERVO_ANGULO      = 88.0;
+    static final double SERVO_ANGULO      = 50.0;
     static final double SERVO_POS_ZERO    = 0.0;                         // portão ABERTO
     static final double SERVO_POS_88      = SERVO_ANGULO / SERVO_LIMITE; // ~0.978 - portão FECHADO
 
@@ -80,25 +89,49 @@ public class Biobuzz2026 extends LinearOpMode {
 
         if (isStopRequested()) return;
 
+        // Ao apertar PLAY, a direção atual do robô vira a "frente do campo"
+        imu.resetYaw();
+
         // Ao apertar PLAY, o portão começa ABERTO (ponto 0)
         servo.setPosition(SERVO_POS_ZERO);
 
+        // true = field-centric (frente do CAMPO) | false = robot-centric (frente do ROBÔ)
+        // Aperte X no gamepad 1 para alternar durante o jogo.
+        boolean campoCentrico = true;
+        boolean xAnterior = false;
+
         while (opModeIsActive()) {
             // ============ MOVIMENTAÇÃO - GAMEPAD 1 ============
-            double y = -gamepad1.left_stick_y; // eixo Y do analógico vem invertido
-            double x = gamepad1.left_stick_x;
-            double rx = gamepad1.right_stick_x;
+            double y = zonaMorta(-gamepad1.left_stick_y); // eixo Y do analógico vem invertido
+            double x = zonaMorta(gamepad1.left_stick_x);
+            double rx = zonaMorta(gamepad1.right_stick_x);
 
-            // Botão options (start no controle Xbox) zera a direção "frente do campo"
-            if (gamepad1.options) {
+            // X alterna o modo (só uma vez por toque, não fica piscando segurando)
+            if (gamepad1.x && !xAnterior) {
+                campoCentrico = !campoCentrico;
+            }
+            xAnterior = gamepad1.x;
+
+            // Botão Y zera a direção "frente do campo"
+            // (deixe o robô apontado para frente antes de apertar)
+            if (gamepad1.y) {
                 imu.resetYaw();
             }
 
             double botHeading = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
 
-            // Rotaciona o comando do joystick contra o ângulo do robô (field-centric)
-            double rotX = x * Math.cos(-botHeading) - y * Math.sin(-botHeading);
-            double rotY = x * Math.sin(-botHeading) + y * Math.cos(-botHeading);
+            // No robot-centric o ângulo é ignorado (frente = frente do robô)
+            double anguloUsado = campoCentrico ? botHeading : 0;
+
+            // Rotaciona o comando do joystick contra o ângulo do robô
+            double rotX = x * Math.cos(-anguloUsado) - y * Math.sin(-anguloUsado);
+            double rotY = x * Math.sin(-anguloUsado) + y * Math.cos(-anguloUsado);
+
+            // Corrige o strafe invertido DEPOIS da rotação,
+            // para o field-centric continuar certo com o robô virado
+            if (INVERTER_STRAFE) {
+                rotX = -rotX;
+            }
 
             rotX = rotX * 1.1;  // compensa o strafe imperfeito das mecanum
 
@@ -143,7 +176,9 @@ public class Biobuzz2026 extends LinearOpMode {
             }
 
             // ============ TELEMETRIA ============
-            telemetry.addData("Heading (graus)", Math.toDegrees(botHeading));
+            telemetry.addData("Modo (X alterna)", campoCentrico ? "FIELD-CENTRIC" : "ROBOT-CENTRIC");
+            telemetry.addData("Heading (graus)", "%.1f", Math.toDegrees(botHeading));
+            telemetry.addData("Strafe invertido", INVERTER_STRAFE);
             telemetry.addData("FL / FR", "%.2f / %.2f", frontLeftPower, frontRightPower);
             telemetry.addData("BL / BR", "%.2f / %.2f", backLeftPower, backRightPower);
             telemetry.addData("Shooter", "%.2f", shooterPower);
@@ -151,5 +186,10 @@ public class Biobuzz2026 extends LinearOpMode {
             telemetry.addData("Portão", servo.getPosition() > 0.5 ? "FECHADO" : "ABERTO");
             telemetry.update();
         }
+    }
+
+    // Zera valores pequenos do analógico
+    private double zonaMorta(double valor) {
+        return Math.abs(valor) < ZONA_MORTA ? 0 : valor;
     }
 }
