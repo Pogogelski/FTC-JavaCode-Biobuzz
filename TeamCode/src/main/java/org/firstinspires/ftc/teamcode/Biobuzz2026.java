@@ -6,6 +6,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
@@ -14,6 +15,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 public class Biobuzz2026 extends LinearOpMode {
 
     // ============ MECANUM ============
+
     // O robô estava indo para a esquerda quando mandava ir para a direita.
     // true = inverte o movimento lateral (strafe). Se voltar a inverter, troque para false.
     static final boolean INVERTER_STRAFE = true;
@@ -24,7 +26,7 @@ public class Biobuzz2026 extends LinearOpMode {
 
     // Sentido de giro (olhando de frente para o eixo do motor):
     // potência POSITIVA = anti-horário | potência NEGATIVA = horário
-    static final double SHOOTER_ANTIHORARIO =  -0.6; // RB - 60% - gira para a esquerda
+    static final double SHOOTER_ANTIHORARIO =  -0.65; // RB - 65% - gira para a esquerda
     static final double SHOOTER_HORARIO     = 1.0; // LB - 100% - gira para a direita
     static final double INTAKE_ANTIHORARIO  =  1.0; // D-pad cima - 100%
     static final double INTAKE_HORARIO      = -1.0; // D-pad baixo - 100%
@@ -41,6 +43,9 @@ public class Biobuzz2026 extends LinearOpMode {
     static final double SERVO_POS_ZERO    = 0.0;                         // portão ABERTO
     static final double SERVO_POS_88      = SERVO_ANGULO / SERVO_LIMITE; // portão FECHADO
 
+    // Quanto tempo o portão fica aberto antes de fechar sozinho
+    static final double TEMPO_PORTAO_ABERTO = 0.20; // segundos
+
     @Override
     public void runOpMode() throws InterruptedException {
         // ============ MECANUM - CONTROL HUB (gamepad1) ============
@@ -55,6 +60,12 @@ public class Biobuzz2026 extends LinearOpMode {
         // inverta o lado esquerdo em vez do direito.
         frontRight.setDirection(DcMotorSimple.Direction.REVERSE);
         backRight.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        // BRAKE: com potência 0 as rodas seguram o robô no lugar em vez de deslizar
+        frontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        frontRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         // ============ MECANISMOS - EXPANSION HUB (gamepad2) ============
         DcMotor shooter = hardwareMap.dcMotor.get("Shooter"); // porta 0 do Expansion Hub
@@ -71,7 +82,7 @@ public class Biobuzz2026 extends LinearOpMode {
 
         // Servo do portão na porta 0 de servos (nome precisa bater com o Driver Hub)
         Servo servo = hardwareMap.servo.get("Servo");
-        // Ao apertar A, o portão deve girar para a DIREITA (horário).
+        // Ao fechar, o portão deve girar para a DIREITA (horário).
         // Se girar para a esquerda, troque para REVERSE e refaça a montagem do ponto 0.
         servo.setDirection(Servo.Direction.FORWARD);
         // Trava o servo entre 0 e 90 graus: qualquer posição pedida fica dentro desse intervalo
@@ -100,8 +111,14 @@ public class Biobuzz2026 extends LinearOpMode {
 
         // true = field-centric (frente do CAMPO) | false = robot-centric (frente do ROBÔ)
         // Aperte X no gamepad 1 para alternar durante o jogo.
-        boolean campoCentrico = true;
+        boolean campoCentrico = false;
         boolean xAnterior = false;
+
+        // Controle do portão: cronômetro em vez de sleep(),
+        // para o robô continuar andando enquanto o portão está aberto
+        ElapsedTime timerPortao = new ElapsedTime();
+        boolean portaoAberto = false;
+        boolean aAnterior = false;
 
         while (opModeIsActive()) {
             // ============ MOVIMENTAÇÃO - GAMEPAD 1 ============
@@ -145,6 +162,14 @@ public class Biobuzz2026 extends LinearOpMode {
             double frontRightPower = (rotY - rotX - rx) / denominator;
             double backRightPower  = (rotY + rotX - rx) / denominator;
 
+            // Trava o robô enquanto o portão estiver aberto (mira não sai do lugar)
+            if (portaoAberto) {
+                frontLeftPower  = 0;
+                backLeftPower   = 0;
+                frontRightPower = 0;
+                backRightPower  = 0;
+            }
+
             frontLeft.setPower(frontLeftPower);
             backLeft.setPower(backLeftPower);
             frontRight.setPower(frontRightPower);
@@ -171,22 +196,32 @@ public class Biobuzz2026 extends LinearOpMode {
             intake.setPower(intakePower);
 
             // ============ SERVO (PORTÃO) - GAMEPAD 2 ============
-            // A: fecha o portão | B: abre o portão (ponto 0)
-            if (gamepad2.a) {
-                servo.setPosition(SERVO_POS_88);
-            } else if (gamepad2.b) {
+            // A: abre o portão e ele fecha sozinho após TEMPO_PORTAO_ABERTO
+            // B: fecha na hora (emergência), sem esperar o tempo
+            if (gamepad2.a && !aAnterior && !portaoAberto) {
                 servo.setPosition(SERVO_POS_ZERO);
+                portaoAberto = true;
+                timerPortao.reset();
+            }
+            aAnterior = gamepad2.a;
+
+            if (portaoAberto && (timerPortao.seconds() >= TEMPO_PORTAO_ABERTO || gamepad2.b)) {
+                servo.setPosition(SERVO_POS_88);
+                portaoAberto = false;
             }
 
             // ============ TELEMETRIA ============
             telemetry.addData("Modo (X alterna)", campoCentrico ? "FIELD-CENTRIC" : "ROBOT-CENTRIC");
             telemetry.addData("Heading (graus)", "%.1f", Math.toDegrees(botHeading));
+            telemetry.addData("Rodas", portaoAberto ? "TRAVADAS (portão aberto)" : "livres");
             telemetry.addData("Strafe invertido", INVERTER_STRAFE);
             telemetry.addData("FL / FR", "%.2f / %.2f", frontLeftPower, frontRightPower);
             telemetry.addData("BL / BR", "%.2f / %.2f", backLeftPower, backRightPower);
             telemetry.addData("Shooter", "%.2f", shooterPower);
             telemetry.addData("Intake", "%.2f", intakePower);
-            telemetry.addData("Portão", servo.getPosition() > SERVO_POS_88 / 2 ? "FECHADO" : "ABERTO");
+            telemetry.addData("Portão", portaoAberto
+                    ? String.format("ABERTO (fecha em %.1fs)", TEMPO_PORTAO_ABERTO - timerPortao.seconds())
+                    : "FECHADO");
             telemetry.update();
         }
     }
