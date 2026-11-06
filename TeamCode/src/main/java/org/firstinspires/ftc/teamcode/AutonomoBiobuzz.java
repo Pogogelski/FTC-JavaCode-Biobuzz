@@ -18,16 +18,16 @@ public class AutonomoBiobuzz extends LinearOpMode {
     static final boolean INVERTER_STRAFE = true;
 
     // ============ SHOOTER E PORTÃO NO AUTÔNOMO ============
-    static final double SHOOTER_AUTONOMO = -0.6;  // fica ligado o autônomo inteiro
-    static final double TEMPO_AUTONOMO   = 25.0;  // segundos
+    static final double SHOOTER_AUTONOMO = -0.65;  // fica ligado o autônomo inteiro
+    static final double TEMPO_AUTONOMO   = 27.0;  // segundos
 
     static final double TEMPO_ACELERAR   = 5.0;   // espera do shooter ligar até a 1ª bola
     static final double TEMPO_DESLIGAR   = 4.0;   // shooter desliga isso depois da última bola
-    static final int    QUANTIDADE_BOLAS = 4;     // quantas vezes o portão abre e fecha
-    static final double INTERVALO_BOLAS  = 3.0;   // segundos entre cada abertura
+    static final int    QUANTIDADE_BOLAS = 3;     // quantas vezes o portão abre e fecha
+    static final double INTERVALO_BOLAS  = 3.5;   // segundos entre cada abertura
     // Quanto tempo o portão fica aberto: o mínimo para o servo chegar lá e voltar.
     // Se NENHUMA bola cair, aumente (ex.: 0.20). Se caírem DUAS, diminua (ex.: 0.10).
-    static final double TEMPO_PORTAO_ABERTO = 0.15;
+    static final double TEMPO_PORTAO_ABERTO = 0.20;
 
     static final double SERVO_CURSO_TOTAL = 270.0;
     static final double SERVO_LIMITE      = 90.0;
