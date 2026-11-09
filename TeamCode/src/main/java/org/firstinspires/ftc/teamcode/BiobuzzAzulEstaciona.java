@@ -11,33 +11,32 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 /*
- * AUTÔNOMO ALIANÇA VERMELHA
+ * AUTÔNOMO ALIANÇA AZUL — início em D6
  *
- * A arena é simétrica por rotação de 180° em torno do centro (72, 72).
- * Girando o percurso azul 180°, o vermelho fica assim (polegadas):
- *
- *   Início:  tile C6  -> centro do robô em (60, 132)
+ * Arena (polegadas, origem no canto da plateia/lado vermelho, tiles de 24 pol):
+ *   Início:  tile D6  -> centro do robô em (84, 132)
  *            FRENTE do robô (coletor) virada para a parede do FUNDO (y = 144)
  *            COSTAS do robô (shooter) viradas para a HIVE
  *
- *   Como o robô está "de costas" para o campo:
- *     ir para a plateia (-y)            = robô anda de RÉ
- *     ir para a esquerda da arena (-x)  = robô anda de lado para a ESQUERDA dele
+ *   Com o robô olhando para o fundo (+y):
+ *     ir para a plateia (-y)          = robô anda de RÉ
+ *     ir para a direita da arena (+x) = robô anda de lado para a DIREITA dele
  *
- *   Passo 1: lança as 3 bolas parado
- *   Passo 2: anda de RÉ 24 pol -> tile C5, centro em (60, 108)
- *   Passo 3: anda de lado para a ESQUERDA do robô ~50 pol
- *            (esquerda da arena) -> loading zone vermelha (A5: x 0–11, y 96–119)
+ *   Passo 1: lança as 3 bolas parado (60 pol até o centro da HIVE, igual a D1)
+ *   Passo 2: lado para a DIREITA 42 pol -> x = 126 (coluna F, fora da HIVE)
+ *   Passo 3: RÉ 96 pol (4 tiles)        -> y = 36 (linha 2)
+ *   Passo 4: lado para a DIREITA 8 pol  -> x = 134, dentro da loading zone F2
+ *            (F2: x 133–144, y 24–47)
  *   Fim:     estacionado, tudo antes de 30 s
  *
- * Como é uma rotação, os comandos do robô são IGUAIS aos do azul;
- * só muda onde ele é colocado no campo.
- *
- * Folgas: em y = 108 um robô de 18 pol ocupa y 99–117, dentro da loading zone (96–119)
- * e longe do topo da HIVE (y ≈ 91,5).
+ * Folgas (robô de 18 pol):
+ *   - Não dá para descer direto pela coluna D: a HIVE ocupa x 47–97, y 52,5–91,5.
+ *   - Descendo em x = 126 o robô ocupa x 117–135: longe da HIVE (97) e com
+ *     ~5 pol de folga da FLOWER da parede azul em (144, 96).
+ *   - No fim, em (134, 36), ocupa x 125–143 e y 27–45: dentro da loading zone.
  */
-@Autonomous(name = "Biobuzz-vermelho", preselectTeleOp = "Biobuzz2026")
-public class BiobuzzVermelho extends LinearOpMode {
+@Autonomous(name = "Biobuzz-azul-estaciona", preselectTeleOp = "Biobuzz2026")
+public class BiobuzzAzulEstaciona extends LinearOpMode {
 
     // ============ MESMOS AJUSTES DO TELEOP ============
     static final boolean INVERTER_STRAFE = true;
@@ -47,7 +46,7 @@ public class BiobuzzVermelho extends LinearOpMode {
     static final double TEMPO_LIMITE = 29.0;
 
     // ============ SHOOTER E PORTÃO ============
-    static final double SHOOTER_AUTONOMO = -0.65;
+    static final double SHOOTER_AUTONOMO = -0.7;
     static final double TEMPO_ACELERAR   = 5.0;   // espera do shooter ligar até a 1ª bola
     static final double TEMPO_DESLIGAR   = 1.2;   // shooter ainda gira isso depois da última bola, para ela sair
     static final int    QUANTIDADE_BOLAS = 3;
@@ -62,10 +61,13 @@ public class BiobuzzVermelho extends LinearOpMode {
     static final double PORTAO_FECHADO    = SERVO_ANGULO / SERVO_LIMITE;
 
     // ============ PERCURSO (em polegadas) ============
-    static final double DISTANCIA_FRENTE = 24.0; // C6 -> C5 (um tile)
-    // C -> A são 2 tiles (48 pol). Com 50 pol a lateral do robô fica a ~1 pol da parede.
+    // D6 (x=84) -> x=126: sai da frente da HIVE sem encostar na FLOWER da parede.
+    static final double DISTANCIA_LADO_1 = 42.0;
+    // y=132 -> y=36: 4 tiles descendo pela coluna F.
+    static final double DISTANCIA_RE     = 96.0;
+    // x=126 -> x=134: entra na loading zone F2.
     // Se bater na parede, diminua. Se não entrar na loading zone, aumente.
-    static final double DISTANCIA_LADO   = 50.0;
+    static final double DISTANCIA_LADO_2 = 8.0;
 
     static final double POTENCIA_FRENTE = 0.5;
     static final double POTENCIA_LADO   = 0.5;
@@ -131,7 +133,7 @@ public class BiobuzzVermelho extends LinearOpMode {
 
         servo.setPosition(PORTAO_FECHADO);
 
-        telemetry.addLine(CALIBRAR ? "MODO CALIBRACAO" : "VERMELHO: robo em C6, coletor para o fundo, shooter para a HIVE.");
+        telemetry.addLine(CALIBRAR ? "MODO CALIBRACAO" : "AZUL: robo em D6, coletor para o fundo, shooter para a HIVE.");
         telemetry.addLine("Aperte PLAY.");
         telemetry.update();
 
@@ -149,10 +151,10 @@ public class BiobuzzVermelho extends LinearOpMode {
         }
 
         // =====================================================
-        // ============ SEQUÊNCIA DO AUTÔNOMO VERMELHO =========
+        // ============ SEQUÊNCIA DO AUTÔNOMO AZUL =============
         // =====================================================
 
-        // ---- 1) LANÇAR AS BOLAS (parado em C6) ----
+        // ---- 1) LANÇAR AS BOLAS (parado em D6) ----
         etapaAtual = "Acelerando shooter";
         servo.setPosition(PORTAO_FECHADO);
         shooter.setPower(SHOOTER_AUTONOMO);
@@ -172,16 +174,21 @@ public class BiobuzzVermelho extends LinearOpMode {
         esperar(TEMPO_DESLIGAR);
         shooter.setPower(0);
 
-        // ---- 2) C6 -> C5: robô anda de RÉ (shooter vai na frente) ----
-        etapaAtual = "Re ate C5";
-        andarPolegadas(-POTENCIA_FRENTE, 0, DISTANCIA_FRENTE);
+        // ---- 2) D6 -> coluna F: lado para a DIREITA do robô (= direita da arena) ----
+        etapaAtual = "Lado ate coluna F";
+        andarPolegadas(0, POTENCIA_LADO, DISTANCIA_LADO_1);
         esperar(PAUSA_ENTRE_MOVIMENTOS);
 
-        // ---- 3) C5 -> A5: de lado para a ESQUERDA do robô (= esquerda da arena) ----
-        etapaAtual = "Lado ate loading zone A5";
-        andarPolegadas(0, -POTENCIA_LADO, DISTANCIA_LADO);
+        // ---- 3) Desce a coluna F: RÉ (shooter vai na frente) até a linha 2 ----
+        etapaAtual = "Re ate linha 2";
+        andarPolegadas(-POTENCIA_FRENTE, 0, DISTANCIA_RE);
+        esperar(PAUSA_ENTRE_MOVIMENTOS);
 
-        // ---- 4) ESTACIONADO ----
+        // ---- 4) Ajuste final para dentro da loading zone F2 ----
+        etapaAtual = "Entrando na loading zone F2";
+        andarPolegadas(0, POTENCIA_LADO, DISTANCIA_LADO_2);
+
+        // ---- 5) ESTACIONADO ----
         etapaAtual = "Estacionado";
         pararTudo();
         while (opModeIsActive()) {
